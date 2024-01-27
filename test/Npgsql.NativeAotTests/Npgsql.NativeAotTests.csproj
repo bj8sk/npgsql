@@ -12,6 +12,7 @@
     <StackTraceSupport>false</StackTraceSupport>
     <IlcFoldIdenticalMethodBodies>true</IlcFoldIdenticalMethodBodies>
     <OptimizationPreference>Size</OptimizationPreference>
+    <TargetFrameworks>net8.0</TargetFrameworks>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/Npgsql/Npgsql.csproj" />

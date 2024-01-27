@@ -1,5 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk" ToolsVersion="15.0">
-  
+  <PropertyGroup>
+    <TargetFrameworks>net8.0</TargetFrameworks>
+  </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="NetTopologySuite" />
     <PackageReference Include="NodaTime" />

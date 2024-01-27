@@ -12,5 +12,6 @@
   </ItemGroup>
   <PropertyGroup>
     <EnableUnsafeBinaryFormatterSerialization>true</EnableUnsafeBinaryFormatterSerialization>
+    <TargetFrameworks>net8.0</TargetFrameworks>
   </PropertyGroup>
 </Project>

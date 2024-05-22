@@ -97,8 +97,8 @@ public static class TestUtil
         }
     }
 
-    public static bool IsPgPrerelease(NpgsqlConnection conn)
-        => ((string)conn.ExecuteScalar("SELECT version()")!).Contains("beta");
+    public static async Task<bool> IsPgPrerelease(NpgsqlConnection conn)
+        => ((string) (await conn.ExecuteScalarAsync("SELECT version()"))!).Contains("beta");
 
     public static void EnsureExtension(NpgsqlConnection conn, string extension, string? minVersion = null)
         => EnsureExtension(conn, extension, minVersion, async: false).GetAwaiter().GetResult();

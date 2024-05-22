@@ -686,7 +686,7 @@ public class ConnectionTests : MultiplexingTestBase
 
         var connString = new NpgsqlConnectionStringBuilder(ConnectionString)
         {
-            LoadOnlyCompositeFromSearchPath = enabled,
+            LoadTypesFromSearchPath = enabled,
             SearchPath = $"{testSchema}, public"
         }.ToString();
         var dataSourceBuilder = new NpgsqlDataSourceBuilder(connString);
@@ -708,8 +708,8 @@ public class ConnectionTests : MultiplexingTestBase
     }
 
     [Test]
-    [TestCase("test_schema_1", "test_schema_2", true, Description = "LoadOnlyCompositeFromSearchPath enabled")]
-    [TestCase("test_schema_3", "test_schema_4", false, Description = "LoadOnlyCompositeFromSearchPath disabled")]
+    [TestCase("test_schema_1", "test_schema_2", true, Description = "LoadTypesFromSearchPath enabled")]
+    [TestCase("test_schema_3", "test_schema_4", false, Description = "LoadTypesFromSearchPath disabled")]
     public async Task Set_SearchPath_And_Load_All_Composite_Types(string testSchema1, string testSchema2, bool enabled)
     {
         using var conn1 = new NpgsqlConnection(ConnectionString);
@@ -726,7 +726,7 @@ public class ConnectionTests : MultiplexingTestBase
 
         var connString = new NpgsqlConnectionStringBuilder(ConnectionString)
         {
-            LoadOnlyCompositeFromSearchPath = enabled,
+            LoadTypesFromSearchPath = enabled,
             SearchPath = $"{testSchema1}, {testSchema2}"
         }.ToString();
         var dataSourceBuilder = new NpgsqlDataSourceBuilder(connString);
@@ -737,11 +737,38 @@ public class ConnectionTests : MultiplexingTestBase
     }
 
     [Test]
+    [TestCase("extensions", true, Description = "LoadTypesFromSearchPath enabled")]
+    public async Task Set_SearchPath_And_Check_Extension_User_Types_Always_Loaded(string extensionSchema, bool enabled)
+    {
+        using var conn1 = new NpgsqlConnection(ConnectionString);
+        await conn1.OpenAsync();
+        await TestUtil.EnsurePostgis(conn1);
+        using var trans = await conn1.BeginTransactionAsync();
+        await conn1.ExecuteNonQueryAsync($"DROP SCHEMA IF EXISTS {extensionSchema} CASCADE");
+        await conn1.ExecuteNonQueryAsync($"CREATE SCHEMA IF NOT EXISTS dummy");
+        await conn1.ExecuteNonQueryAsync($"CREATE SCHEMA {extensionSchema}");
+        await conn1.ExecuteNonQueryAsync($"DROP EXTENSION IF EXISTS postgis CASCADE");
+        await conn1.ExecuteNonQueryAsync($"CREATE EXTENSION postgis SCHEMA {extensionSchema}");
+        await trans.CommitAsync();
+        await conn1.CloseAsync();
+
+        var connString = new NpgsqlConnectionStringBuilder(ConnectionString)
+        {
+            LoadTypesFromSearchPath = enabled,
+            SearchPath = "dummy"
+        }.ToString();
+        var dataSourceBuilder = new NpgsqlDataSourceBuilder(connString);
+        using var dataSource = dataSourceBuilder.Build();
+        using var conn = await dataSource.OpenConnectionAsync();
+        Assert.True(dataSource.DatabaseInfo.BaseTypes.Any(x => x.Name == "geography" && x.Namespace == extensionSchema));
+    }
+
+    [Test]
     public void Set_SearchPath_To_Invalid()
     {
         var connString = new NpgsqlConnectionStringBuilder(ConnectionString)
         {
-            LoadOnlyCompositeFromSearchPath = true,
+            LoadTypesFromSearchPath = true,
             SearchPath = $"schema1, ;DROP TABLE X; COMMIT; schema2"
         }.ToString();
         var dataSourceBuilder = new NpgsqlDataSourceBuilder(connString);
@@ -842,11 +869,9 @@ public class ConnectionTests : MultiplexingTestBase
         };
         using var _ = CreateTempPool(csb, out var connString);
 
-        await using var conn = await OpenConnectionAsync(connString);
-
-        var startTimestamp = Stopwatch.GetTimestamp();
+        var watch = Stopwatch.StartNew();
         // Give a few seconds for a KeepAlive to possibly perform
-        while (GetElapsedTime(startTimestamp).TotalSeconds < 2)
+        while (watch.Elapsed.TotalSeconds < 2)
             Assert.DoesNotThrow(conn.ReloadTypes);
 
         // dotnet 3.1 doesn't have Stopwatch.GetElapsedTime method.

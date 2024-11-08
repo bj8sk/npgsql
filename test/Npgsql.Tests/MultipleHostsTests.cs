@@ -23,7 +23,7 @@ namespace Npgsql.Tests;
 public class MultipleHostsTests : TestBase
 {
     static readonly object[] MyCases =
-    {
+    [
         new object[] { TargetSessionAttributes.Standby,        new[] { Primary,         Standby         }, 1 },
         new object[] { TargetSessionAttributes.Standby,        new[] { PrimaryReadOnly, Standby         }, 1 },
         new object[] { TargetSessionAttributes.PreferStandby,  new[] { Primary,         Standby         }, 1 },
@@ -41,7 +41,7 @@ public class MultipleHostsTests : TestBase
         new object[] { TargetSessionAttributes.ReadWrite,      new[] { PrimaryReadOnly, Primary         }, 1 },
         new object[] { TargetSessionAttributes.ReadOnly,       new[] { Primary,         Standby         }, 1 },
         new object[] { TargetSessionAttributes.ReadOnly,       new[] { PrimaryReadOnly, Standby         }, 0 }
-    };
+    ];
 
     [Test]
     [TestCaseSource(nameof(MyCases))]
@@ -1166,15 +1166,11 @@ public class MultipleHostsTests : TestBase
     static string MultipleHosts(params PgPostmasterMock[] postmasters)
         => string.Join(",", postmasters.Select(p => $"{p.Host}:{p.Port}"));
 
-    class DisposableWrapper : IAsyncDisposable
+    class DisposableWrapper(IEnumerable<IAsyncDisposable> disposables) : IAsyncDisposable
     {
-        readonly IEnumerable<IAsyncDisposable> _disposables;
-
-        public DisposableWrapper(IEnumerable<IAsyncDisposable> disposables) => _disposables = disposables;
-
         public async ValueTask DisposeAsync()
         {
-            foreach (var disposable in _disposables)
+            foreach (var disposable in disposables)
                 await disposable.DisposeAsync();
         }
     }

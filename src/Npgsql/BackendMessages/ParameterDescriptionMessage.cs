@@ -9,9 +9,7 @@ sealed class ParameterDescriptionMessage : IBackendMessage
     internal List<uint> TypeOIDs { get; }
 
     internal ParameterDescriptionMessage()
-    {
-        TypeOIDs = new List<uint>();
-    }
+        => TypeOIDs = [];
 
     internal ParameterDescriptionMessage Load(NpgsqlReadBuffer buf)
     {

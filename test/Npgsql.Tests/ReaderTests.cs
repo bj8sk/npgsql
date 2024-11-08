@@ -1369,7 +1369,7 @@ LANGUAGE plpgsql VOLATILE";
         var table = await CreateTempTable(conn, "bytes BYTEA");
 
         // TODO: This is too small to actually test any interesting sequential behavior
-        byte[] expected = { 1, 2, 3, 4, 5 };
+        byte[] expected = [1, 2, 3, 4, 5];
         var actual = new byte[expected.Length];
         await conn.ExecuteNonQueryAsync($"INSERT INTO {table} (bytes) VALUES ({EncodeByteaHex(expected)})");
 
@@ -1400,7 +1400,7 @@ LANGUAGE plpgsql VOLATILE";
         reader.GetBytes(4, 0, actual, 0, 2);
         Assert.That(reader.GetBytes(4, expected.Length - 1, actual, 0, 2), Is.EqualTo(1),
             "Length greater than data length");
-        Assert.That(actual[0], Is.EqualTo(expected[expected.Length - 1]), "Length greater than data length");
+        Assert.That(actual[0], Is.EqualTo(expected[^1]), "Length greater than data length");
         Assert.That(() => reader.GetBytes(4, 0, actual, 0, actual.Length + 1),
             Throws.Exception.TypeOf<IndexOutOfRangeException>(), "Length great than output buffer length");
         // Close in the middle of a column
@@ -1662,7 +1662,7 @@ LANGUAGE plpgsql VOLATILE";
         // Jump to another column from the middle of the column
         reader.GetChars(5, 0, actual, 0, 2);
         Assert.That(reader.GetChars(5, expected.Length - 1, actual, 0, 2), Is.EqualTo(1), "Length greater than data length");
-        Assert.That(actual[0], Is.EqualTo(expected[expected.Length - 1]), "Length greater than data length");
+        Assert.That(actual[0], Is.EqualTo(expected[^1]), "Length greater than data length");
         Assert.That(() => reader.GetChars(5, 0, actual, 0, actual.Length + 1), Throws.Exception.TypeOf<IndexOutOfRangeException>(), "Length great than output buffer length");
         // Close in the middle of a column
         reader.GetChars(6, 0, actual, 0, 2);
@@ -2391,23 +2391,17 @@ LANGUAGE plpgsql VOLATILE";
 
 #region Mock Type Handlers
 
-sealed class ExplodingTypeHandlerResolverFactory : PgTypeInfoResolverFactory
+sealed class ExplodingTypeHandlerResolverFactory(bool safe) : PgTypeInfoResolverFactory
 {
-    readonly bool _safe;
-    public ExplodingTypeHandlerResolverFactory(bool safe) => _safe = safe;
-
-    public override IPgTypeInfoResolver CreateResolver() => new Resolver(_safe);
+    public override IPgTypeInfoResolver CreateResolver() => new Resolver(safe);
     public override IPgTypeInfoResolver? CreateArrayResolver() => null;
 
-    sealed class Resolver : IPgTypeInfoResolver
+    sealed class Resolver(bool safe) : IPgTypeInfoResolver
     {
-        readonly bool _safe;
-        public Resolver(bool safe) => _safe = safe;
-
         public PgTypeInfo? GetTypeInfo(Type? type, DataTypeName? dataTypeName, PgSerializerOptions options)
         {
             if (dataTypeName == DataTypeNames.Int4 && (type == typeof(int) || type is null))
-                return new(options, new ExplodingTypeHandler(_safe), DataTypeNames.Int4);
+                return new(options, new ExplodingTypeHandler(safe), DataTypeNames.Int4);
 
             return null;
         }

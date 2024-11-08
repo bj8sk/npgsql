@@ -8,28 +8,21 @@ using static Npgsql.Internal.Converters.PgNumeric.Builder;
 
 namespace Npgsql.Internal.Converters;
 
-readonly struct PgNumeric
+readonly struct PgNumeric(ArraySegment<short> digits, short weight, short sign, short scale)
 {
     // numeric digit count + weight + sign + scale
     const int StructureByteCount = 4 * sizeof(short);
     const int DecimalBits = 4;
     const int StackAllocByteThreshold = 64 * sizeof(uint);
 
-    readonly ushort _sign;
-
-    public PgNumeric(ArraySegment<short> digits, short weight, short sign, short scale)
-    {
-        Digits = digits;
-        Weight = weight;
-        _sign = (ushort)sign;
-        Scale = scale;
-    }
+    readonly ushort _sign = (ushort)sign;
 
     /// Big endian array of numeric digits
-    public ArraySegment<short> Digits { get; }
-    public short Weight { get; }
+    public ArraySegment<short> Digits { get; } = digits;
+
+    public short Weight { get; } = weight;
     public short Sign => (short)_sign;
-    public short Scale { get; }
+    public short Scale { get; } = scale;
 
     public int GetByteCount() => GetByteCount(Digits.Count);
     public static int GetByteCount(int digitCount) => StructureByteCount + digitCount * sizeof(short);
@@ -101,7 +94,8 @@ readonly struct PgNumeric
         internal const int MaxDecimalNumericDigits = 8;
 
         // Fast access for 10^n where n is 0-9
-        static ReadOnlySpan<uint> UIntPowers10 => new uint[] {
+        static ReadOnlySpan<uint> UIntPowers10 =>
+        [
             1,
             10,
             100,
@@ -112,7 +106,7 @@ readonly struct PgNumeric
             10000000,
             100000000,
             1000000000
-        };
+        ];
 
         const int MaxUInt32Scale = 9;
         const int MaxUInt16Scale = 4;
@@ -351,14 +345,24 @@ readonly struct PgNumeric
                 result += digit;
 
                 if (scaleDifference < 0)
-                    result /= UIntPowers10[-scaleDifference];
+                {
+                    // Doesn't look like we can loop even once, but just to be on a safe side
+                    while (scaleDifference < 0)
+                    {
+                        var scaleChunk = Math.Min(MaxUIntScale, -scaleDifference);
+                        result /= UIntPowers10[scaleChunk];
+                        scaleDifference += scaleChunk;
+                    }
+                }
                 else
+                {
                     while (scaleDifference > 0)
                     {
                         var scaleChunk = Math.Min(MaxUIntScale, scaleDifference);
-                        result *= UIntPowers10[scaleChunk];
+                        scaleFactor *= UIntPowers10[scaleChunk];
                         scaleDifference -= scaleChunk;
                     }
+                }
             }
 
             result *= scaleFactor;

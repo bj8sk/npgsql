@@ -209,6 +209,12 @@ public abstract class NpgsqlDataSource : DbDataSource
         => new NpgsqlDataSourceBatch(CreateConnection());
 
     /// <summary>
+    /// If the data source pools connections, clears any idle connections and flags any busy connections to be closed as soon as they're
+    /// returned to the pool.
+    /// </summary>
+    public abstract void Clear();
+
+    /// <summary>
     /// Creates a new <see cref="NpgsqlDataSource" /> for the given <paramref name="connectionString" />.
     /// </summary>
     public static NpgsqlDataSource Create(string connectionString)
@@ -371,8 +377,6 @@ public abstract class NpgsqlDataSource : DbDataSource
 
     internal abstract void Return(NpgsqlConnector connector);
 
-    internal abstract void Clear();
-
     internal abstract bool OwnsConnectors { get; }
 
     #region Database state management
@@ -443,7 +447,7 @@ public abstract class NpgsqlDataSource : DbDataSource
                 connector = null;
                 return false;
             }
-            connector = list[list.Count - 1];
+            connector = list[^1];
             list.RemoveAt(list.Count - 1);
             if (list.Count == 0)
                 _pendingEnlistedConnectors.Remove(transaction);
@@ -516,16 +520,13 @@ public abstract class NpgsqlDataSource : DbDataSource
 
     #endregion
 
-    sealed class DatabaseStateInfo
+    sealed class DatabaseStateInfo(DatabaseState state, NpgsqlTimeout timeout, DateTime timeStamp)
     {
-        internal readonly DatabaseState State;
-        internal readonly NpgsqlTimeout Timeout;
+        internal readonly DatabaseState State = state;
+        internal readonly NpgsqlTimeout Timeout = timeout;
         // While the TimeStamp is not strictly required, it does lower the risk of overwriting the current state with an old value
-        internal readonly DateTime TimeStamp;
+        internal readonly DateTime TimeStamp = timeStamp;
 
         public DatabaseStateInfo() : this(default, default, default) { }
-
-        public DatabaseStateInfo(DatabaseState state, NpgsqlTimeout timeout, DateTime timeStamp)
-            => (State, Timeout, TimeStamp) = (state, timeout, timeStamp);
     }
 }

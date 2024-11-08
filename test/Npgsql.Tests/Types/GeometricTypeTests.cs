@@ -10,7 +10,7 @@ namespace Npgsql.Tests.Types;
 /// <remarks>
 /// https://www.postgresql.org/docs/current/static/datatype-geometric.html
 /// </remarks>
-class GeometricTypeTests : MultiplexingTestBase
+class GeometricTypeTests(MultiplexingMode multiplexingMode) : MultiplexingTestBase(multiplexingMode)
 {
     [Test]
     public Task Point()
@@ -107,7 +107,7 @@ class GeometricTypeTests : MultiplexingTestBase
     [Test]
     public Task Path_closed()
         => AssertType(
-            new NpgsqlPath(new[] { new NpgsqlPoint(1, 2), new NpgsqlPoint(3, 4) }, false),
+            new NpgsqlPath([new NpgsqlPoint(1, 2), new NpgsqlPoint(3, 4)], false),
             "((1,2),(3,4))",
             "path",
             NpgsqlDbType.Path);
@@ -115,7 +115,7 @@ class GeometricTypeTests : MultiplexingTestBase
     [Test]
     public Task Path_open()
         => AssertType(
-            new NpgsqlPath(new[] { new NpgsqlPoint(1, 2), new NpgsqlPoint(3, 4) }, true),
+            new NpgsqlPath([new NpgsqlPoint(1, 2), new NpgsqlPoint(3, 4)], true),
             "[(1,2),(3,4)]",
             "path",
             NpgsqlDbType.Path);
@@ -135,6 +135,4 @@ class GeometricTypeTests : MultiplexingTestBase
             "<(1,2),0.5>",
             "circle",
             NpgsqlDbType.Circle);
-
-    public GeometricTypeTests(MultiplexingMode multiplexingMode) : base(multiplexingMode) {}
 }

@@ -18,14 +18,14 @@ public class NodaTimeTests : MultiplexingTestBase, IDisposable
     #region Timestamp without time zone
 
     static readonly TestCaseData[] TimestampValues =
-    {
+    [
         new TestCaseData(new LocalDateTime(1998, 4, 12, 13, 26, 38, 789), "1998-04-12 13:26:38.789")
             .SetName("Timestamp_pre2000"),
         new TestCaseData(new LocalDateTime(2015, 1, 27, 8, 45, 12, 345), "2015-01-27 08:45:12.345")
             .SetName("Timestamp_post2000"),
         new TestCaseData(new LocalDateTime(1999, 12, 31, 23, 59, 59, 999).PlusNanoseconds(456000), "1999-12-31 23:59:59.999456")
             .SetName("Timestamp_with_microseconds")
-    };
+    ];
 
     [Test, TestCaseSource(nameof(TimestampValues))]
     public Task Timestamp_as_LocalDateTime(LocalDateTime localDateTime, string sqlLiteral)
@@ -145,7 +145,7 @@ public class NodaTimeTests : MultiplexingTestBase, IDisposable
     #region Timestamp with time zone
 
     static readonly TestCaseData[] TimestamptzValues =
-    {
+    [
         new TestCaseData(new LocalDateTime(1998, 4, 12, 13, 26, 38).InUtc().ToInstant(), "1998-04-12 15:26:38+02")
             .SetName("Timestamptz_pre2000"),
         new TestCaseData(new LocalDateTime(2015, 1, 27, 8, 45, 12, 345).InUtc().ToInstant(), "2015-01-27 09:45:12.345+01")
@@ -154,7 +154,7 @@ public class NodaTimeTests : MultiplexingTestBase, IDisposable
             .SetName("Timestamptz_write_date_only"),
         new TestCaseData(new LocalDateTime(1999, 12, 31, 23, 59, 59, 999).PlusNanoseconds(456000).InUtc().ToInstant(), "2000-01-01 00:59:59.999456+01")
             .SetName("Timestamptz_with_microseconds")
-    };
+    ];
 
     [Test, TestCaseSource(nameof(TimestamptzValues))]
     public Task Timestamptz_as_Instant(Instant instant, string sqlLiteral)
@@ -768,6 +768,43 @@ public class NodaTimeTests : MultiplexingTestBase, IDisposable
         {
             Assert.That(reader.GetFieldType(i), Is.EqualTo(typeof(Period)));
         }
+    }
+
+    [Test, IssueLink("https://github.com/npgsql/npgsql/issues/5867")]
+    public async Task Normalize_period_on_write()
+    {
+        var value = Period.FromTicks(-3675048768766);
+        var expected = value.Normalize();
+        var expectedAfterRoundtripBuilder = expected.ToBuilder();
+        // Postgres doesn't support nanoseconds, trim them to microseconds
+        expectedAfterRoundtripBuilder.Nanoseconds -= expected.Nanoseconds % 1000;
+        var expectedAfterRoundtrip = expectedAfterRoundtripBuilder.Build();
+
+        await using var conn = await OpenConnectionAsync();
+        await using var cmd = new NpgsqlCommand("SELECT $1, $2", conn);
+        cmd.Parameters.AddWithValue(value);
+        cmd.Parameters.AddWithValue(expected);
+
+        await using var reader = await cmd.ExecuteReaderAsync();
+        await reader.ReadAsync();
+
+        var dbValue = reader.GetFieldValue<Period>(0);
+        var dbExpected = reader.GetFieldValue<Period>(1);
+
+        Assert.That(dbValue, Is.EqualTo(dbExpected));
+        Assert.That(dbValue, Is.EqualTo(expectedAfterRoundtrip));
+    }
+
+    [Test]
+    public async Task Period_write_throw_on_overflow()
+    {
+        var periodBuilder = new PeriodBuilder
+        {
+            Years = int.MaxValue
+        };
+        var ex = await AssertTypeUnsupportedWrite<Period, ArgumentException>(periodBuilder.Build(), "interval");
+        Assert.That(ex.Message, Is.EqualTo(NpgsqlNodaTimeStrings.CannotWritePeriodDueToOverflow));
+        Assert.That(ex.InnerException, Is.TypeOf<OverflowException>());
     }
 
     #endregion Interval

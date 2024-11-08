@@ -21,19 +21,19 @@ namespace Npgsql.Tests.Types;
 /// <remarks>
 /// https://www.postgresql.org/docs/current/static/arrays.html
 /// </remarks>
-public class ArrayTests : MultiplexingTestBase
+public class ArrayTests(MultiplexingMode multiplexingMode) : MultiplexingTestBase(multiplexingMode)
 {
     static readonly TestCaseData[] ArrayTestCases =
-    {
+    [
         new TestCaseData(new[] { 1, 2, 3 }, "{1,2,3}", "integer[]", NpgsqlDbType.Integer | NpgsqlDbType.Array)
             .SetName("Integer_array"),
         new TestCaseData(Array.Empty<int>(), "{}", "integer[]", NpgsqlDbType.Integer | NpgsqlDbType.Array)
             .SetName("Empty_array"),
         new TestCaseData(new[,] { { 1, 2, 3 }, { 7, 8, 9 } }, "{{1,2,3},{7,8,9}}", "integer[]", NpgsqlDbType.Integer | NpgsqlDbType.Array)
             .SetName("Two_dimensional_array"),
-        new TestCaseData(new[] { new byte[] { 1, 2 }, new byte[] { 3, 4 } }, """{"\\x0102","\\x0304"}""", "bytea[]", NpgsqlDbType.Bytea | NpgsqlDbType.Array)
+        new TestCaseData(new[] { [1, 2], new byte[] { 3, 4 } }, """{"\\x0102","\\x0304"}""", "bytea[]", NpgsqlDbType.Bytea | NpgsqlDbType.Array)
             .SetName("Bytea_array")
-    };
+    ];
 
     [Test, TestCaseSource(nameof(ArrayTestCases))]
     public Task Arrays<T>(T array, string sqlLiteral, string pgTypeName, NpgsqlDbType? npgsqlDbType)
@@ -163,10 +163,8 @@ SELECT onedim, twodim FROM (VALUES
 
     [Test]
     public void Read_IList_implementation_throws()
-    {
-        Assert.ThrowsAsync<InvalidCastException>(() =>
+        => Assert.ThrowsAsync<InvalidCastException>(() =>
             AssertTypeRead("{1,2,3}", "integer[]", ImmutableArray.Create(1, 2, 3), isDefault: false));
-    }
 
     [Test]
     public async Task Generic_IList()
@@ -311,7 +309,7 @@ SELECT onedim, twodim FROM (VALUES
     {
         await using var conn = await OpenConnectionAsync();
         await using var cmd = new NpgsqlCommand("SELECT @p1", conn);
-        cmd.Parameters.AddWithValue("p1", NpgsqlDbType.Array | NpgsqlDbType.Integer, new[] { new[] { 8 }, new[] { 8, 10 } });
+        cmd.Parameters.AddWithValue("p1", NpgsqlDbType.Array | NpgsqlDbType.Integer, new[] { [8], new[] { 8, 10 } });
         Assert.That(async () => await cmd.ExecuteNonQueryAsync(), Throws.Exception
             .TypeOf<InvalidCastException>()
             .With.Property("InnerException").Message.Contains("jagged"));
@@ -403,7 +401,7 @@ CREATE DOMAIN pg_temp.int_array_2d  AS int[][] CHECK(array_length(VALUE, 2) = 2)
         await using var dataSource = dataSourceBuilder.Build();
 
         await AssertTypeUnsupportedRead<int[], InvalidCastException>("{1,2,3}", "integer[]", dataSource);
-        await AssertTypeUnsupportedWrite<int[], InvalidCastException>(new[] { 1, 2, 3 }, "integer[]", dataSource);
+        await AssertTypeUnsupportedWrite<int[], InvalidCastException>([1, 2, 3], "integer[]", dataSource);
     }
 
     [Test]
@@ -415,6 +413,4 @@ CREATE DOMAIN pg_temp.int_array_2d  AS int[][] CHECK(array_length(VALUE, 2) = 2)
 
         await AssertType(dataSource, new[] { 1, 2, 3 }, "{1,2,3}", "integer[]", NpgsqlDbType.Integer | NpgsqlDbType.Array);
     }
-
-    public ArrayTests(MultiplexingMode multiplexingMode) : base(multiplexingMode) {}
 }

@@ -13,7 +13,7 @@ namespace Npgsql.Tests.Types;
 /// <remarks>
 /// https://www.postgresql.org/docs/current/static/datatype-net-types.html
 /// </remarks>
-class NetworkTypeTests : MultiplexingTestBase
+class NetworkTypeTests(MultiplexingMode multiplexingMode) : MultiplexingTestBase(multiplexingMode)
 {
     [Test]
     public Task Inet_v4_as_IPAddress()
@@ -60,6 +60,16 @@ class NetworkTypeTests : MultiplexingTestBase
             "cidr",
             NpgsqlDbType.Cidr,
             isDefaultForWriting: false);
+
+    [Test]
+    public Task IPNetwork_as_cidr()
+        => AssertType(
+            new IPNetwork(IPAddress.Parse("192.168.1.0"), 24),
+            "192.168.1.0/24",
+            "cidr",
+            NpgsqlDbType.Cidr,
+            isDefaultForWriting: false,
+            isDefaultForReading: false);
 
     [Test]
     public Task Inet_v4_as_NpgsqlInet()
@@ -128,6 +138,4 @@ class NetworkTypeTests : MultiplexingTestBase
 
         await AssertTypeUnsupportedWrite<PhysicalAddress, ArgumentException>(PhysicalAddress.Parse("08-00-2B-01-02-03-04-05"), "macaddr");
     }
-
-    public NetworkTypeTests(MultiplexingMode multiplexingMode) : base(multiplexingMode) {}
 }

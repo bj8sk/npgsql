@@ -462,6 +462,25 @@ public sealed partial class NpgsqlConnectionStringBuilder : DbConnectionStringBu
     SslMode _sslMode;
 
     /// <summary>
+    /// Controls how SSL encryption is negotiated with the server, if SSL is used.
+    /// </summary>
+    [Category("Security")]
+    [Description("Controls how SSL encryption is negotiated with the server, if SSL is used.")]
+    [DisplayName("SSL Negotiation")]
+    [NpgsqlConnectionStringProperty]
+    public SslNegotiation SslNegotiation
+    {
+        get => UserProvidedSslNegotiation ?? SslNegotiation.Postgres;
+        set
+        {
+            UserProvidedSslNegotiation = value;
+            SetValue(nameof(SslNegotiation), value);
+        }
+    }
+
+    internal SslNegotiation? UserProvidedSslNegotiation { get; private set; }
+
+    /// <summary>
     /// Location of a client certificate to be sent to the server.
     /// </summary>
     [Category("Security")]
@@ -1416,8 +1435,10 @@ public sealed partial class NpgsqlConnectionStringBuilder : DbConnectionStringBu
             throw new ArgumentException("Host can't be null");
         if (Multiplexing && !Pooling)
             throw new ArgumentException("Pooling must be on to use multiplexing");
+        if (SslNegotiation == SslNegotiation.Direct && SslMode is not SslMode.Require and not SslMode.VerifyCA and not SslMode.VerifyFull)
+            throw new ArgumentException("SSL Mode has to be Require or higher to be used with direct SSL Negotiation");
 
-        if (!Host.Contains(","))
+        if (!Host.Contains(','))
         {
             if (TargetSessionAttributesParsed is not null &&
                 TargetSessionAttributesParsed != Npgsql.TargetSessionAttributes.Any)
@@ -1616,7 +1637,7 @@ sealed class NpgsqlConnectionStringPropertyAttribute : Attribute
     /// Creates a <see cref="NpgsqlConnectionStringPropertyAttribute"/>.
     /// </summary>
     public NpgsqlConnectionStringPropertyAttribute()
-        => Synonyms = Array.Empty<string>();
+        => Synonyms = [];
 
     /// <summary>
     /// Creates a <see cref="NpgsqlConnectionStringPropertyAttribute"/>.
@@ -1678,6 +1699,21 @@ public enum SslMode
     /// Fail the connection if the server doesn't support SSL. Also verifies server certificate with host's name.
     /// </summary>
     VerifyFull
+}
+
+/// <summary>
+/// Specifies how to initialize SSL session.
+/// </summary>
+public enum SslNegotiation
+{
+    /// <summary>
+    /// Perform PostgreSQL protocol negotiation.
+    /// </summary>
+    Postgres,
+    /// <summary>
+    /// Start SSL handshake directly after establishing the TCP/IP connection.
+    /// </summary>
+    Direct
 }
 
 /// <summary>

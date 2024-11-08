@@ -44,12 +44,10 @@ public class NpgsqlEventSourceTests : TestBase
 
     TestEventListener _listener = null!;
 
-    readonly List<EventWrittenEventArgs> _events = new();
+    readonly List<EventWrittenEventArgs> _events = [];
 
-    class TestEventListener : EventListener
+    class TestEventListener(List<EventWrittenEventArgs> events) : EventListener
     {
-        readonly List<EventWrittenEventArgs> _events;
-        public TestEventListener(List<EventWrittenEventArgs> events) => _events = events;
-        protected override void OnEventWritten(EventWrittenEventArgs eventData) => _events.Add(eventData);
+        protected override void OnEventWritten(EventWrittenEventArgs eventData) => events.Add(eventData);
     }
 }

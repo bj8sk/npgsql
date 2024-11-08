@@ -17,17 +17,10 @@ namespace NpgsqlTypes;
 /// <remarks>
 /// See https://www.postgresql.org/docs/current/static/datatype-geometric.html
 /// </remarks>
-public struct NpgsqlPoint : IEquatable<NpgsqlPoint>
+public struct NpgsqlPoint(double x, double y) : IEquatable<NpgsqlPoint>
 {
-    public double X { get; set; }
-    public double Y { get; set; }
-
-    public NpgsqlPoint(double x, double y)
-        : this()
-    {
-        X = x;
-        Y = y;
-    }
+    public double X { get; set; } = x;
+    public double Y { get; set; } = y;
 
     // ReSharper disable CompareOfFloatsByEqualityOperator
     public bool Equals(NpgsqlPoint other) => X == other.X && Y == other.Y;
@@ -53,19 +46,11 @@ public struct NpgsqlPoint : IEquatable<NpgsqlPoint>
 /// <remarks>
 /// See https://www.postgresql.org/docs/current/static/datatype-geometric.html
 /// </remarks>
-public struct NpgsqlLine : IEquatable<NpgsqlLine>
+public struct NpgsqlLine(double a, double b, double c) : IEquatable<NpgsqlLine>
 {
-    public double A { get; set; }
-    public double B { get; set; }
-    public double C { get; set; }
-
-    public NpgsqlLine(double a, double b, double c)
-        : this()
-    {
-        A = a;
-        B = b;
-        C = c;
-    }
+    public double A { get; set; } = a;
+    public double B { get; set; } = b;
+    public double C { get; set; } = c;
 
     public override string ToString()
         => string.Format(CultureInfo.InvariantCulture, "{{{0},{1},{2}}}", A, B, C);
@@ -200,15 +185,18 @@ public struct NpgsqlBox : IEquatable<NpgsqlBox>
 /// </summary>
 public struct NpgsqlPath : IList<NpgsqlPoint>, IEquatable<NpgsqlPath>
 {
-    readonly List<NpgsqlPoint> _points;
+    List<NpgsqlPoint> _points;
+
+    List<NpgsqlPoint> Points => _points ??= [];
+
     public bool Open { get; set; }
 
     public NpgsqlPath()
-        => _points = new();
+        => _points = [];
 
     public NpgsqlPath(IEnumerable<NpgsqlPoint> points, bool open)
     {
-        _points = new List<NpgsqlPoint>(points);
+        _points = [..points];
         Open = open;
     }
 
@@ -217,7 +205,7 @@ public struct NpgsqlPath : IList<NpgsqlPoint>, IEquatable<NpgsqlPath>
 
     public NpgsqlPath(bool open) : this()
     {
-        _points = new List<NpgsqlPoint>();
+        _points = [];
         Open = open;
     }
 
@@ -231,23 +219,23 @@ public struct NpgsqlPath : IList<NpgsqlPoint>, IEquatable<NpgsqlPath>
 
     public NpgsqlPoint this[int index]
     {
-        get => _points[index];
-        set => _points[index] = value;
+        get => Points[index];
+        set => Points[index] = value;
     }
 
-    public int Capacity => _points.Capacity;
-    public int Count => _points.Count;
+    public int Capacity => Points.Capacity;
+    public int Count => _points?.Count ?? 0;
     public bool IsReadOnly => false;
 
-    public int IndexOf(NpgsqlPoint item) => _points.IndexOf(item);
-    public void Insert(int index, NpgsqlPoint item) => _points.Insert(index, item);
-    public void RemoveAt(int index) => _points.RemoveAt(index);
-    public void Add(NpgsqlPoint item) => _points.Add(item);
-    public void Clear() =>  _points.Clear();
-    public bool Contains(NpgsqlPoint item) => _points.Contains(item);
-    public void CopyTo(NpgsqlPoint[] array, int arrayIndex) =>  _points.CopyTo(array, arrayIndex);
-    public bool Remove(NpgsqlPoint item) =>  _points.Remove(item);
-    public IEnumerator<NpgsqlPoint> GetEnumerator() =>  _points.GetEnumerator();
+    public int IndexOf(NpgsqlPoint item) => Points.IndexOf(item);
+    public void Insert(int index, NpgsqlPoint item) => Points.Insert(index, item);
+    public void RemoveAt(int index) => Points.RemoveAt(index);
+    public void Add(NpgsqlPoint item) => Points.Add(item);
+    public void Clear() => Points.Clear();
+    public bool Contains(NpgsqlPoint item) => Points.Contains(item);
+    public void CopyTo(NpgsqlPoint[] array, int arrayIndex) => Points.CopyTo(array, arrayIndex);
+    public bool Remove(NpgsqlPoint item) => Points.Remove(item);
+    public IEnumerator<NpgsqlPoint> GetEnumerator() => Points.GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
     public bool Equals(NpgsqlPath other)
@@ -287,12 +275,12 @@ public struct NpgsqlPath : IList<NpgsqlPoint>, IEquatable<NpgsqlPath>
         var sb = new StringBuilder();
         sb.Append(Open ? '[' : '(');
         int i;
-        for (i = 0; i < _points.Count; i++)
+        for (i = 0; i < Count; i++)
         {
             var p = _points[i];
             sb.AppendFormat(CultureInfo.InvariantCulture, "({0},{1})", p.X, p.Y);
             if (i < _points.Count - 1)
-                sb.Append(",");
+                sb.Append(',');
         }
         sb.Append(Open ? ']' : ')');
         return sb.ToString();
@@ -302,15 +290,17 @@ public struct NpgsqlPath : IList<NpgsqlPoint>, IEquatable<NpgsqlPath>
 /// <summary>
 /// Represents a PostgreSQL Polygon type.
 /// </summary>
-public readonly struct NpgsqlPolygon : IList<NpgsqlPoint>, IEquatable<NpgsqlPolygon>
+public struct NpgsqlPolygon : IList<NpgsqlPoint>, IEquatable<NpgsqlPolygon>
 {
-    readonly List<NpgsqlPoint> _points;
+    List<NpgsqlPoint> _points;
+
+    List<NpgsqlPoint> Points => _points ??= [];
 
     public NpgsqlPolygon()
-        => _points = new();
+        => _points = [];
 
     public NpgsqlPolygon(IEnumerable<NpgsqlPoint> points)
-        => _points = new List<NpgsqlPoint>(points);
+        => _points = [..points];
 
     public NpgsqlPolygon(params NpgsqlPoint[] points) : this((IEnumerable<NpgsqlPoint>) points) {}
 
@@ -319,23 +309,23 @@ public readonly struct NpgsqlPolygon : IList<NpgsqlPoint>, IEquatable<NpgsqlPoly
 
     public NpgsqlPoint this[int index]
     {
-        get => _points[index];
-        set => _points[index] = value;
+        get => Points[index];
+        set => Points[index] = value;
     }
 
-    public int Capacity => _points.Capacity;
-    public int Count => _points.Count;
+    public int Capacity => Points.Capacity;
+    public int Count => _points?.Count ?? 0;
     public bool IsReadOnly => false;
 
-    public int IndexOf(NpgsqlPoint item) => _points.IndexOf(item);
-    public void Insert(int index, NpgsqlPoint item) => _points.Insert(index, item);
-    public void RemoveAt(int index) =>  _points.RemoveAt(index);
-    public void Add(NpgsqlPoint item) =>  _points.Add(item);
-    public void Clear() =>  _points.Clear();
-    public bool Contains(NpgsqlPoint item) => _points.Contains(item);
-    public void CopyTo(NpgsqlPoint[] array, int arrayIndex) => _points.CopyTo(array, arrayIndex);
-    public bool Remove(NpgsqlPoint item) => _points.Remove(item);
-    public IEnumerator<NpgsqlPoint> GetEnumerator() => _points.GetEnumerator();
+    public int IndexOf(NpgsqlPoint item) => Points.IndexOf(item);
+    public void Insert(int index, NpgsqlPoint item) => Points.Insert(index, item);
+    public void RemoveAt(int index) => Points.RemoveAt(index);
+    public void Add(NpgsqlPoint item) => Points.Add(item);
+    public void Clear() => Points.Clear();
+    public bool Contains(NpgsqlPoint item) => Points.Contains(item);
+    public void CopyTo(NpgsqlPoint[] array, int arrayIndex) => Points.CopyTo(array, arrayIndex);
+    public bool Remove(NpgsqlPoint item) => Points.Remove(item);
+    public IEnumerator<NpgsqlPoint> GetEnumerator() => Points.GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
     public bool Equals(NpgsqlPolygon other)
@@ -374,7 +364,7 @@ public readonly struct NpgsqlPolygon : IList<NpgsqlPoint>, IEquatable<NpgsqlPoly
         var sb = new StringBuilder();
         sb.Append('(');
         int i;
-        for (i = 0; i < _points.Count; i++)
+        for (i = 0; i < Count; i++)
         {
             var p = _points[i];
             sb.AppendFormat(CultureInfo.InvariantCulture, "({0},{1})", p.X, p.Y);
@@ -390,25 +380,15 @@ public readonly struct NpgsqlPolygon : IList<NpgsqlPoint>, IEquatable<NpgsqlPoly
 /// <summary>
 /// Represents a PostgreSQL Circle type.
 /// </summary>
-public struct NpgsqlCircle : IEquatable<NpgsqlCircle>
+public struct NpgsqlCircle(double x, double y, double radius) : IEquatable<NpgsqlCircle>
 {
-    public double X { get; set; }
-    public double Y { get; set; }
-    public double Radius { get; set; }
+    public double X { get; set; } = x;
+    public double Y { get; set; } = y;
+    public double Radius { get; set; } = radius;
 
     public NpgsqlCircle(NpgsqlPoint center, double radius)
-        : this()
+        : this(center.X, center.Y, radius)
     {
-        X = center.X;
-        Y = center.Y;
-        Radius = radius;
-    }
-
-    public NpgsqlCircle(double x, double y, double radius) : this()
-    {
-        X = x;
-        Y = y;
-        Radius = radius;
     }
 
     public NpgsqlPoint Center
@@ -478,8 +458,8 @@ public readonly record struct NpgsqlInet
     }
 
     public override string ToString()
-        => (Address.AddressFamily == AddressFamily.InterNetwork && Netmask == 32) ||
-           (Address.AddressFamily == AddressFamily.InterNetworkV6 && Netmask == 128)
+        => (Address?.AddressFamily == AddressFamily.InterNetwork && Netmask == 32) ||
+           (Address?.AddressFamily == AddressFamily.InterNetworkV6 && Netmask == 128)
             ? Address.ToString()
             : $"{Address}/{Netmask}";
 
@@ -552,23 +532,17 @@ public readonly record struct NpgsqlCidr
 /// <remarks>
 /// https://www.postgresql.org/docs/current/static/datatype-oid.html
 /// </remarks>
-public readonly struct NpgsqlTid : IEquatable<NpgsqlTid>
+public readonly struct NpgsqlTid(uint blockNumber, ushort offsetNumber) : IEquatable<NpgsqlTid>
 {
     /// <summary>
     /// Block number
     /// </summary>
-    public uint BlockNumber { get; }
+    public uint BlockNumber { get; } = blockNumber;
 
     /// <summary>
     /// Tuple index within block
     /// </summary>
-    public ushort OffsetNumber { get; }
-
-    public NpgsqlTid(uint blockNumber, ushort offsetNumber)
-    {
-        BlockNumber = blockNumber;
-        OffsetNumber = offsetNumber;
-    }
+    public ushort OffsetNumber { get; } = offsetNumber;
 
     public bool Equals(NpgsqlTid other)
         => BlockNumber == other.BlockNumber && OffsetNumber == other.OffsetNumber;

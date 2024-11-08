@@ -13,7 +13,7 @@ namespace Npgsql.Tests.Types;
 /// <remarks>
 /// https://www.postgresql.org/docs/current/static/datatype-bit.html
 /// </remarks>
-public class BitStringTests : MultiplexingTestBase
+public class BitStringTests(MultiplexingMode multiplexingMode) : MultiplexingTestBase(multiplexingMode)
 {
     [Test]
     [TestCase("10110110", TestName = "BitArray")]
@@ -69,7 +69,7 @@ public class BitStringTests : MultiplexingTestBase
     {
         using var conn = await OpenConnectionAsync();
         using var cmd = new NpgsqlCommand("SELECT @p", conn);
-        var expected = new[] { new BitArray(new[] { true, false, true }), new BitArray(new[] { false }) };
+        var expected = new[] { new BitArray([true, false, true]), new BitArray([false]) };
         var p = new NpgsqlParameter("p", NpgsqlDbType.Array | NpgsqlDbType.Varbit) { Value = expected };
         cmd.Parameters.Add(p);
         p.Value = expected;
@@ -123,6 +123,4 @@ public class BitStringTests : MultiplexingTestBase
     [Test]
     public Task Write_as_string_validation()
         => AssertTypeUnsupportedWrite<string, ArgumentException>("001q0", "bit varying");
-
-    public BitStringTests(MultiplexingMode multiplexingMode) : base(multiplexingMode) {}
 }

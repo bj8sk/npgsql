@@ -9,11 +9,8 @@ using NUnit.Framework;
 
 namespace Npgsql.Tests.Types;
 
-public class FullTextSearchTests : MultiplexingTestBase
+public class FullTextSearchTests(MultiplexingMode multiplexingMode) : MultiplexingTestBase(multiplexingMode)
 {
-    public FullTextSearchTests(MultiplexingMode multiplexingMode)
-        : base(multiplexingMode) { }
-
     [Test]
     public Task TsVector()
         => AssertType(
@@ -24,31 +21,27 @@ public class FullTextSearchTests : MultiplexingTestBase
 
     public static IEnumerable TsQueryTestCases() => new[]
     {
-        new object[]
-        {
+        [
             "'a'",
             new NpgsqlTsQueryLexeme("a")
-        },
-        new object[]
-        {
+        ],
+        [
             "!'a'",
             new NpgsqlTsQueryNot(
                 new NpgsqlTsQueryLexeme("a"))
-        },
-        new object[]
-        {
+        ],
+        [
             "'a' | 'b'",
             new NpgsqlTsQueryOr(
                 new NpgsqlTsQueryLexeme("a"),
                 new NpgsqlTsQueryLexeme("b"))
-        },
-        new object[]
-        {
+        ],
+        [
             "'a' & 'b'",
             new NpgsqlTsQueryAnd(
                 new NpgsqlTsQueryLexeme("a"),
                 new NpgsqlTsQueryLexeme("b"))
-        },
+        ],
         new object[]
         {
             "'a' <-> 'b'",

@@ -424,7 +424,7 @@ public class NpgsqlCommand : DbCommand, ICloneable, IComponent
     /// Gets the <see cref="NpgsqlParameterCollection"/>.
     /// </summary>
     /// <value>The parameters of the SQL statement or function (stored procedure). The default is an empty collection.</value>
-    public new NpgsqlParameterCollection Parameters => _parameters ??= new();
+    public new NpgsqlParameterCollection Parameters => _parameters ??= [];
 
     #endregion
 
@@ -731,11 +731,16 @@ GROUP BY pg_proc.proargnames, pg_proc.proargtypes, pg_proc.proallargtypes, pg_pr
                                 continue;
 
                             var pStatement = batchCommand.PreparedStatement!;
+                            var replacedStatement = pStatement.StatementBeingReplaced;
 
-                            if (pStatement.StatementBeingReplaced != null)
+                            if (replacedStatement != null)
                             {
                                 Expect<CloseCompletedMessage>(await connector.ReadMessage(async).ConfigureAwait(false), connector);
-                                pStatement.StatementBeingReplaced.CompleteUnprepare();
+                                replacedStatement.CompleteUnprepare();
+
+                                if (!replacedStatement.IsExplicit)
+                                    connector.PreparedStatementManager.AutoPrepared[replacedStatement.AutoPreparedSlotIndex] = null;
+
                                 pStatement.StatementBeingReplaced = null;
                             }
 
@@ -1026,7 +1031,7 @@ GROUP BY pg_proc.proargnames, pg_proc.proargtypes, pg_proc.proallargtypes, pg_pr
 
         static void ValidateParameterCount(NpgsqlBatchCommand batchCommand)
         {
-            if (batchCommand.HasParameters && batchCommand.PositionalParameters.Count > ushort.MaxValue)
+            if (batchCommand is { HasParameters: true, PositionalParameters.Count: > ushort.MaxValue })
                 ThrowHelper.ThrowNpgsqlException("A statement cannot have more than 65535 parameters");
         }
     }
@@ -1078,7 +1083,7 @@ GROUP BY pg_proc.proargnames, pg_proc.proargtypes, pg_proc.proallargtypes, pg_pr
                         i == 0 ? UnknownResultTypeList : null,
                         async, cancellationToken).ConfigureAwait(false);
 
-                    await connector.WriteDescribe(StatementOrPortal.Portal, Array.Empty<byte>(), async, cancellationToken).ConfigureAwait(false);
+                    await connector.WriteDescribe(StatementOrPortal.Portal, [], async, cancellationToken).ConfigureAwait(false);
                 }
                 else
                 {
@@ -1149,8 +1154,8 @@ GROUP BY pg_proc.proargnames, pg_proc.proargtypes, pg_proc.proallargtypes, pg_pr
 
             var batchCommand = InternalBatchCommands[i];
 
-            await connector.WriteParse(batchCommand.FinalCommandText!, Array.Empty<byte>(), NpgsqlBatchCommand.EmptyParameters, async, cancellationToken).ConfigureAwait(false);
-            await connector.WriteDescribe(StatementOrPortal.Statement, Array.Empty<byte>(), async, cancellationToken).ConfigureAwait(false);
+            await connector.WriteParse(batchCommand.FinalCommandText!, [], NpgsqlBatchCommand.EmptyParameters, async, cancellationToken).ConfigureAwait(false);
+            await connector.WriteDescribe(StatementOrPortal.Statement, [], async, cancellationToken).ConfigureAwait(false);
         }
 
         await connector.WriteSync(async, cancellationToken).ConfigureAwait(false);

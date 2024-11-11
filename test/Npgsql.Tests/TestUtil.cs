@@ -165,7 +165,7 @@ public static class TestUtil
         catch (PostgresException e) when (e.SqlState == PostgresErrorCodes.UndefinedFile)
         {
             // PostGIS packages aren't available for PostgreSQL prereleases
-            if (IsPgPrerelease(conn))
+            if (await IsPgPrerelease(conn))
             {
                 Assert.Ignore($"PostGIS could not be installed, but PostgreSQL is prerelease ({conn.ServerVersion}), ignoring test suite.");
             }

@@ -908,10 +908,6 @@ public class ConnectionTests : MultiplexingTestBase
         // Give a few seconds for a KeepAlive to possibly perform
         while (watch.Elapsed.TotalSeconds < 2)
             Assert.DoesNotThrow(conn.ReloadTypes);
-
-        // dotnet 3.1 doesn't have Stopwatch.GetElapsedTime method.
-        static TimeSpan GetElapsedTime(long startingTimestamp) =>
-            new((long)((Stopwatch.GetTimestamp() - startingTimestamp) * ((double)10000000 / Stopwatch.Frequency)));
     }
 
     #region ChangeDatabase
@@ -950,7 +946,7 @@ public class ConnectionTests : MultiplexingTestBase
     }
 
     #endregion
-
+                                                                                                                
     [Test, Description("Tests closing a connector while a reader is open")]
     public async Task Close_during_read([Values(PooledOrNot.Pooled, PooledOrNot.Unpooled)] PooledOrNot pooled)
     {

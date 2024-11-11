@@ -165,7 +165,6 @@ public static class TestUtil
 
     public static async Task EnsurePostgis(NpgsqlConnection conn)
     {
-        var isPreRelease = IsPgPrerelease(conn);
         try
         {
             await EnsureExtensionAsync(conn, "postgis");
@@ -173,13 +172,9 @@ public static class TestUtil
         catch (PostgresException e) when (e.SqlState == PostgresErrorCodes.UndefinedFile)
         {
             // PostGIS packages aren't available for PostgreSQL prereleases
-            if (isPreRelease)
+            if (await IsPgPrerelease(conn))
             {
                 Assert.Ignore($"PostGIS could not be installed, but PostgreSQL is prerelease ({conn.ServerVersion}), ignoring test suite.");
-            }
-            else
-            {
-                throw;
             }
         }
     }

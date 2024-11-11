@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -145,7 +146,7 @@ FROM (
 ) AS t
 JOIN pg_namespace AS ns ON (ns.oid = typnamespace)
 WHERE
-    {(LoadTypesFromSearchPath && schemas?.Count() > 0 ? $"(ns.nspname IN ('information_schema', 'pg_catalog', 'public', {string.Join(", ", schemas)}){(hasTypeCategory? $" OR typcategory = 'U'" : "" )}) AND (" : "(")}
+    {(LoadTypesFromSearchPath && (schemas?.Any() ?? false) ? $"(ns.nspname IN ('information_schema', 'pg_catalog', 'public', {string.Join(", ", schemas)}){(hasTypeCategory? $" OR typcategory = 'U'" : "" )}) AND (" : "(")}
     typtype IN ('b', 'r', 'm', 'e', 'd') OR -- Base, range, multirange, enum, domain
     (typtype = 'c' AND {(loadTableComposites ? "ns.nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast')" : "relkind='c'")}) OR -- User-defined free-standing composites (not table composites) by default
     (typtype = 'p' AND typname IN ('record', 'void', 'unknown')) OR -- Some special supported pseudo-types

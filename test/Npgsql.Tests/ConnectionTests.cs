@@ -890,8 +890,6 @@ public class ConnectionTests : MultiplexingTestBase
         await using var dataSource = CreateDataSource(csb => csb.KeepAlive = 1);
         await using var conn = await dataSource.OpenConnectionAsync();
 
-        await using var conn = await OpenConnectionAsync(connString);
-
         var watch = Stopwatch.StartNew();
         // Give a few seconds for a KeepAlive to possibly perform
         while (watch.Elapsed.TotalSeconds < 2)

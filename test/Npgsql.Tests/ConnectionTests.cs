@@ -902,6 +902,8 @@ public class ConnectionTests : MultiplexingTestBase
         };
         using var _ = CreateTempPool(csb, out var connString);
 
+        await using var conn = await OpenConnectionAsync(connString);
+
         var watch = Stopwatch.StartNew();
         // Give a few seconds for a KeepAlive to possibly perform
         while (watch.Elapsed.TotalSeconds < 2)
